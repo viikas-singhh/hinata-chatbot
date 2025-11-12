@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 
-interface ProfileSidebarProps {
+interface NavbarPanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function ProfileSidebar({ isOpen, onClose }: ProfileSidebarProps) {
+export default function NavbarPanel({ isOpen, onClose }: NavbarPanelProps) {
   const [activeTab, setActiveTab] = useState<'feedback' | 'terms'>('feedback');
 
   if (!isOpen) return null;

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "Hinata - AI Girlfriend",
   description: "A cute, responsive AI chatbot girlfriend powered by DeepSeek",
   icons: {
-    icon: '/favicon.ico',
+    icon: '/hinataa.ico',
   },
 };
 

@@ -1,4 +1,4 @@
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef, KeyboardEvent, useEffect } from 'react';
 
 interface ChatInputBoxProps {
   onSend: (message: string) => void;
@@ -27,40 +27,45 @@ export default function ChatInputBox({ onSend, disabled }: ChatInputBoxProps) {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 100)}px`;
     }
   };
 
+  // Auto-resize textarea when message changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [message]);
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-pink-100 dark:border-gray-700">
-      <div className="flex items-end p-2">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-pink-100 dark:border-gray-700">
+      <div className="flex items-end p-1">
         <textarea
           ref={textareaRef}
           value={message}
           onChange={(e) => {
             setMessage(e.target.value);
-            adjustTextareaHeight();
           }}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder="Type a message..."
-          className="flex-1 resize-none border-0 bg-transparent py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-0 max-h-32"
+          className="flex-1 resize-none border-0 bg-transparent py-1 px-2 text-gray-900 dark:text-white focus:outline-none focus:ring-0 max-h-20 placeholder-gray-400 dark:placeholder-gray-500 text-sm"
           rows={1}
         />
         <button
           onClick={handleSubmit}
           disabled={!message.trim() || disabled}
-          className={`ml-2 h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
+          className={`ml-1 h-6 w-6 rounded-full flex items-center justify-center transition-all duration-200 ${
             message.trim() && !disabled
-              ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:opacity-90'
+              ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:opacity-90 hover:scale-105 shadow-xs'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
           }`}
+          aria-label="Send message"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="w-5 h-5"
+            className="w-3 h-3"
           >
             <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
           </svg>
