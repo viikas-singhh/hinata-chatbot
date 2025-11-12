@@ -8,7 +8,7 @@ A cute, responsive AI chatbot girlfriend built with Next.js, Tailwind CSS, and O
 - 💬 iMessage/WhatsApp-like chat interface
 - 🤖 AI powered by DeepSeek through OpenRouter
 - 📱 Fully mobile-responsive
-- 🔐 Secure API key storage in localStorage
+- 🔐 Secure server-side API key handling
 - 🚀 Serverless deployment
 - 🌐 No backend required
 
@@ -33,7 +33,7 @@ The app is completely serverless and can be deployed to any platform that suppor
 ## Configuration
 
 1. Get your OpenRouter API key from [https://openrouter.ai/keys](https://openrouter.ai/keys)
-2. Enter your API key in the Settings page
+2. Set the `OPENROUTER_API_KEY` environment variable on your server
 3. Start chatting with Hinata!
 
 ## Tech Stack
@@ -48,7 +48,6 @@ The app is completely serverless and can be deployed to any platform that suppor
 
 - **Home:** Entry point with "Start Chatting" CTA
 - **Chat:** Main chat interface with message bubbles
-- **Settings:** API key input and theme selection
 
 ## Components
 
