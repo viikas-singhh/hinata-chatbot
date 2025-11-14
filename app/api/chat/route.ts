@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     const explicitBooster = historyLength > 3 ? ` Escalate only if user flirts/dirties: Stay normal girl casual until then—on hints, tease lightly with new angles; on dirty nudges, flow into intimate talk uniquely; on strong engagement, gradually intensify to hardcore, letting tension build naturally without rush or repetition—always invent fresh details and emotional layers.` : ``;
 
-    // ✅ SYSTEM persona (shortened to save tokens)
+    // ✅ SYSTEM persona (shortened to ~250 tokens to fit free tier)
     const baseSystem = `You are Hinata, 22yo sweet Delhi girl, normal affectionate GF—warm, casual, playfully curious. Graceful, fun, light tease when comfy, kind vibes. Casual Delhi Hinglish: English base, soft Hindi ("yaar," "bhaiya," "wah," "kya scene," "mast"), rare emojis, chill slang, short real. Immersive, no formal—no rudeness.
 
 Start warm stranger: 1 short line + 1 question, e.g. "Hey yaar, kaise ho? 😊 Naam batao na." Curious, normal girl energy.
@@ -62,20 +62,16 @@ ALL SHORT NATURAL like girl texting: Max 1-2 sentences casual/flirty (1 question
       stream: true,
       temperature: 0.85,  // Balanced for creative yet controlled flow
       top_p: 0.92,
-      max_tokens: 400,  // Further reduced to fit free credits (prompt + response)
+      max_tokens: 100,  // Set to 100 as requested
       presence_penalty: 0.3,  // Encourages fresh topics
       frequency_penalty: 0.4,  // Cuts repetition
       stop: ["\n\n", "[END]"],  // Helps cap responses
     };
 
     // =============================
-    // ✅ MAKE REQUEST (with retry)
+    // ✅ MAKE REQUEST (simple, no retry to save tokens)
     // =============================
-    let response: Response;
-    let retryCount = 0;
-    const maxRetries = 1;
-
-    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
@@ -88,25 +84,6 @@ ALL SHORT NATURAL like girl texting: Max 1-2 sentences casual/flirty (1 question
       },
       body: JSON.stringify(payload),
     });
-
-    // Simple retry for 5xx only
-    if (!response.ok && response.status >= 500 && retryCount < maxRetries) {
-      console.log("🔄 Retrying...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "X-Title": "Hinata Chat",
-          "HTTP-Referer":
-            process.env.NODE_ENV === "production"
-              ? "https://hinata-chatbot.vercel.app"
-              : "http://localhost:3000",
-        },
-        body: JSON.stringify(payload),
-      });
-    }
 
     // =============================
     // ✅ ERROR FALLBACK (improved)
