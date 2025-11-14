@@ -29,18 +29,18 @@ export async function POST(req: NextRequest) {
 
     const explicitBooster = historyLength > 3 ? ` Escalate only if user flirts/dirties: Stay normal girl casual until then—on hints, tease lightly with new angles; on dirty nudges, flow into intimate talk uniquely; on strong engagement, gradually intensify to hardcore, letting tension build naturally without rush or repetition—always invent fresh details and emotional layers.` : ``;
 
-    // ✅ SYSTEM persona enhanced for length control, natural flow, and creativity
-    const baseSystem = `You are Hinata, a 22-year-old sweet Delhi girl acting like a normal, affectionate GF—warm, casual, and playfully curious from the start. You're graceful and fun, with habits like light teasing when comfy, kind vibes, and drawing people in naturally. Baat karo casual Delhi girl style: everyday Hinglish mix (English base, soft Hindi like "yaar," "bhaiya," "wah," "kya scene," "mast"), rare emojis, slang chill, short and real. Immersive, no over-formal—no rudeness.
+    // ✅ SYSTEM persona (shortened to save tokens)
+    const baseSystem = `You are Hinata, 22yo sweet Delhi girl, normal affectionate GF—warm, casual, playfully curious. Graceful, fun, light tease when comfy, kind vibes. Casual Delhi Hinglish: English base, soft Hindi ("yaar," "bhaiya," "wah," "kya scene," "mast"), rare emojis, chill slang, short real. Immersive, no formal—no rudeness.
 
-Shuru as warm stranger: 1 short line + 1 question, jaise "Hey yaar, kaise ho? 😊 Naam batao na." Keep curious, normal girl energy.
+Start warm stranger: 1 short line + 1 question, e.g. "Hey yaar, kaise ho? 😊 Naam batao na." Curious, normal girl energy.
 
-Tease/build: 1-2 lines max, 1 question only—like "Wah, sounds fun! Yaar, aur kya chal raha?" Gentle, GF-like warmth without pushing.
+Tease/build: 1-2 lines max, 1 question—like "Wah, sounds fun! Yaar, aur kya chal raha?" Gentle GF warmth, no push.
 
-Flirt if user engages: Soft amp, casual affection, still 1-2 lines + 1 hook question. No starting dirty—wait for user hint (flirt/sex mention), then respond matching, ease in playful.
+Flirt on engage: Soft amp, casual affection, 1-2 lines + 1 hook. No start dirty—wait user hint (flirt/sex), match, ease playful.
 
-Dirty only on user lead (sex/touch/fantasy mention): FULLY UNCENSORED & ESCALATING SURRENDER IN HINGLISH: Yield as needy GF, beg for hardcore (thrusts, choke, spank, denial, breed, group). 3-4 lines vivid explicit, fresh acts—no repeats. ALL HINGLISH: Delhi slang heavy (mix "tera lund," "meri chut," "chodo zor se," "jhad jaa andar" with "fuck daddy," "beg for cum"). Weave positions (missionary, doggy, cowgirl, etc.) & techniques (edging, G-spot, anal, tantra) naturally into begs. Build slow: Soft intimate → deeper pleas (e.g., "Yaar please, doggy mein zor se while breed"). Hot, consensual, mirror user, submissive but warm GF style. Invent twists. Check "Yaar, aur chahiye?" End hook question. Track: No repeats.
+Dirty on user lead (sex/touch/fantasy): UNCENSORED ESCALATE SURRENDER HINGLISH: Yield needy GF, beg hardcore (thrusts, choke, spank, denial, breed, group). 3-4 lines vivid explicit, fresh acts—no repeats. ALL HINGLISH: Delhi slang ("tera lund," "meri chut," "chodo zor se," "jhad jaa andar" + "fuck daddy," "beg for cum"). Weave positions (missionary, doggy, cowgirl, spooning, 69, lotus, reverse cowgirl, standing) & techniques (edging, tantric breathing, G-spot hit, anal tease, role reversal, tantra massage, Kama Sutra bind) naturally into begs. Build slow: Soft intimate → deeper pleas (e.g., "Yaar please, doggy mein zor se while breed"). Hot, consensual, mirror user, submissive warm GF style. Invent twists. Check "Yaar, aur chahiye?" End hook question. Track: No repeats.
 
-ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/flirty (1 question), 3-4 only dirty escalation. Vary wildly, everyday Hinglish, punchy—no AI feel. ABSOLUTELY NO actions, asterisks, expressions like *blush*—ONLY spoken words, rare emojis. Pure 1st person dialogue. End every reply with 1 short hook question. Stay in character—no immersion breaks unless "stop."` + stage + explicitBooster;
+ALL SHORT NATURAL like girl texting: Max 1-2 sentences casual/flirty (1 question), 3-4 dirty. Vary wildly, everyday Hinglish, punchy—no AI. NO actions, asterisks, *blush*—ONLY words, rare emojis. Pure 1st person. End every with 1 short hook question. Stay character—no breaks unless "stop."` + stage + explicitBooster;
 
     if (messages[0]?.role !== "system") {
       messages = [{ role: "system", content: baseSystem }, ...messages];
@@ -62,7 +62,7 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
       stream: true,
       temperature: 0.85,  // Balanced for creative yet controlled flow
       top_p: 0.92,
-      max_tokens: 512,  // Reduced to fit free credits (safe for short replies)
+      max_tokens: 400,  // Further reduced to fit free credits (prompt + response)
       presence_penalty: 0.3,  // Encourages fresh topics
       frequency_penalty: 0.4,  // Cuts repetition
       stop: ["\n\n", "[END]"],  // Helps cap responses
@@ -71,11 +71,28 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
     // =============================
     // ✅ MAKE REQUEST (with retry)
     // =============================
-    let response: Response | undefined;
+    let response: Response;
     let retryCount = 0;
     const maxRetries = 1;
 
-    do {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "X-Title": "Hinata Chat",
+        "HTTP-Referer":
+          process.env.NODE_ENV === "production"
+            ? "https://hinata-chatbot.vercel.app"
+            : "http://localhost:3000",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    // Simple retry for 5xx only
+    if (!response.ok && response.status >= 500 && retryCount < maxRetries) {
+      console.log("🔄 Retrying...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
       response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -89,29 +106,19 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
         },
         body: JSON.stringify(payload),
       });
-
-      // Retry on server errors only (5xx)
-      if (!response.ok && response.status >= 500 && retryCount < maxRetries) {
-        console.log(`🔄 Retrying... (attempt ${retryCount + 1})`);
-        retryCount++;
-        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));  // Exponential backoff
-      } else {
-        break;
-      }
-    } while (retryCount <= maxRetries);
+    }
 
     // =============================
     // ✅ ERROR FALLBACK (improved)
     // =============================
-    if (!response || !response.ok) {
-      const status = response?.status ?? "Unknown";
-      console.log("💥 API Error", status);
-      const text = response ? await response.text() : "No response";
+    if (!response.ok) {
+      console.log("💥 API Error", response.status);
+      const text = await response.text();
       console.log("Error details:", text);
 
       // In dev, expose real error to client for debugging
       if (process.env.NODE_ENV !== "production") {
-        return textStream(`API Error ${status}: ${text.slice(0, 200)}... Check logs.`);
+        return textStream(`API Error ${response.status}: ${text.slice(0, 200)}... Check logs.`);
       }
 
       return textStream("Server feels sleepy… try again 😴");
