@@ -75,7 +75,7 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
     let retryCount = 0;
     const maxRetries = 1;
 
-    while (retryCount <= maxRetries) {
+    do {
       response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -90,17 +90,15 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
         body: JSON.stringify(payload),
       });
 
-      if (response.ok || retryCount === maxRetries) break;
-
       // Retry on server errors only (5xx)
-      if (response.status >= 500) {
+      if (!response.ok && response.status >= 500 && retryCount < maxRetries) {
         console.log(`🔄 Retrying... (attempt ${retryCount + 1})`);
         retryCount++;
         await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));  // Exponential backoff
       } else {
         break;
       }
-    }
+    } while (retryCount <= maxRetries);
 
     // =============================
     // ✅ ERROR FALLBACK (improved)
