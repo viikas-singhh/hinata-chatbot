@@ -6,7 +6,7 @@ export const runtime = "nodejs";  // ✅ MUST for stable env + streaming
 // ✅ MODEL CONFIG
 // =============================
 const PRIMARY_MODEL = "deepseek/deepseek-chat";
-// const PRIMARY_MODEL = "meta-llama/llama-3.1-405b-instruct";   // (better - optional)
+// const PRIMARY_MODEL = "openai/gpt-3.5-turbo";  // Swap for cheaper/free alternative if needed
 const MAX_CONTEXT_MESSAGES = 12;
 
 export async function POST(req: NextRequest) {
@@ -62,35 +62,59 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
       stream: true,
       temperature: 0.85,  // Balanced for creative yet controlled flow
       top_p: 0.92,
-      max_tokens: 1024,
+      max_tokens: 512,  // Reduced to fit free credits (safe for short replies)
       presence_penalty: 0.3,  // Encourages fresh topics
       frequency_penalty: 0.4,  // Cuts repetition
+      stop: ["\n\n", "[END]"],  // Helps cap responses
     };
 
     // =============================
-    // ✅ MAKE REQUEST
+    // ✅ MAKE REQUEST (with retry)
     // =============================
-    let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Title": "Hinata Chat",
-        "HTTP-Referer":
-          process.env.NODE_ENV === "production"
-            ? "https://hinata-chatbot.vercel.app"
-            : "http://localhost:3000",
-      },
-      body: JSON.stringify(payload),
-    });
+    let response;
+    let retryCount = 0;
+    const maxRetries = 1;
+
+    while (retryCount <= maxRetries) {
+      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "X-Title": "Hinata Chat",
+          "HTTP-Referer":
+            process.env.NODE_ENV === "production"
+              ? "https://hinata-chatbot.vercel.app"
+              : "http://localhost:3000",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok || retryCount === maxRetries) break;
+
+      // Retry on server errors only (5xx)
+      if (response.status >= 500) {
+        console.log(`🔄 Retrying... (attempt ${retryCount + 1})`);
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));  // Exponential backoff
+      } else {
+        break;
+      }
+    }
 
     // =============================
-    // ✅ ERROR FALLBACK
+    // ✅ ERROR FALLBACK (improved)
     // =============================
     if (!response.ok) {
       console.log("💥 API Error", response.status);
       const text = await response.text();
-      console.log(text);
+      console.log("Error details:", text);
+
+      // In dev, expose real error to client for debugging
+      if (process.env.NODE_ENV !== "production") {
+        return textStream(`API Error ${response.status}: ${text.slice(0, 200)}... Check logs.`);
+      }
+
       return textStream("Server feels sleepy… try again 😴");
     }
 
@@ -163,6 +187,10 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
     return textStream("No response body 😴");
   } catch (err) {
     console.log("💥 CRASH:", err);
+    // Expose in dev
+    if (process.env.NODE_ENV !== "production") {
+      return textStream(`Crash: ${err.message}`);
+    }
     return textStream("Crash 😅 Try again.");
   }
 }
