@@ -104,13 +104,14 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
     // ✅ ERROR FALLBACK (improved)
     // =============================
     if (!response || !response.ok) {
-      console.log("💥 API Error", response?.status ?? "Unknown");
+      const status = response?.status ?? "Unknown";
+      console.log("💥 API Error", status);
       const text = response ? await response.text() : "No response";
       console.log("Error details:", text);
 
       // In dev, expose real error to client for debugging
       if (process.env.NODE_ENV !== "production") {
-        return textStream(`API Error ${response?.status ?? "Unknown"}: ${text.slice(0, 200)}... Check logs.`);
+        return textStream(`API Error ${status}: ${text.slice(0, 200)}... Check logs.`);
       }
 
       return textStream("Server feels sleepy… try again 😴");
