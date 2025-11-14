@@ -71,7 +71,7 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
     // =============================
     // ✅ MAKE REQUEST (with retry)
     // =============================
-    let response;
+    let response: Response | undefined;
     let retryCount = 0;
     const maxRetries = 1;
 
@@ -103,14 +103,14 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
     // =============================
     // ✅ ERROR FALLBACK (improved)
     // =============================
-    if (!response.ok) {
-      console.log("💥 API Error", response.status);
-      const text = await response.text();
+    if (!response || !response.ok) {
+      console.log("💥 API Error", response?.status ?? "Unknown");
+      const text = response ? await response.text() : "No response";
       console.log("Error details:", text);
 
       // In dev, expose real error to client for debugging
       if (process.env.NODE_ENV !== "production") {
-        return textStream(`API Error ${response.status}: ${text.slice(0, 200)}... Check logs.`);
+        return textStream(`API Error ${response?.status ?? "Unknown"}: ${text.slice(0, 200)}... Check logs.`);
       }
 
       return textStream("Server feels sleepy… try again 😴");
