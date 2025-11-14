@@ -185,9 +185,10 @@ ALL responses SHORT & NATURAL like real girl texting: Max 1-2 sentences casual/f
     return textStream("No response body 😴");
   } catch (err) {
     console.log("💥 CRASH:", err);
-    // Expose in dev
+    // Expose in dev with safe error handling
     if (process.env.NODE_ENV !== "production") {
-      return textStream(`Crash: ${err.message}`);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return textStream(`Crash: ${errorMsg}`);
     }
     return textStream("Crash 😅 Try again.");
   }
