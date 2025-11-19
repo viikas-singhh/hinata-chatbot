@@ -10,12 +10,12 @@ export default function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
   // For empty assistant messages, show typing indicator
   if (!isUser && !message.content) {
     return (
-      <div className="flex justify-start w-full">
-        <div className="bg-white dark:bg-gray-700 rounded-2xl rounded-tl-none px-3 py-2 max-w-xs shadow-xs min-h-[2rem] flex items-center">
+      <div className="flex justify-start w-full clear-both">
+        <div className="bg-white dark:bg-gray-700 rounded-2xl rounded-tl-none px-4 py-3 max-w-xs shadow-xs min-h-[2.5rem] flex items-center">
           <div className="flex space-x-1">
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
           </div>
           <p className="text-xs text-gray-500 ml-2">Hinata typing... 💭</p>
         </div>
@@ -24,9 +24,9 @@ export default function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
   }
   
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full clear-both`}>
       <div
-        className={`max-w-[85%] px-3 py-2 rounded-2xl shadow-xs text-sm transition-all duration-200 ease-in-out ${
+        className={`max-w-[85%] px-4 py-3 rounded-2xl shadow-xs text-sm transition-all duration-200 ease-in-out ${
           isUser
             ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-br-none rounded-tl-2xl rounded-tr-2xl'
             : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none rounded-tr-2xl rounded-br-2xl'

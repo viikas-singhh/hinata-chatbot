@@ -203,12 +203,11 @@ export default function Chat() {
       <ClientViewport />
 
       <div
-        className="flex flex-col bg-gradient-to-br from-rose-50 to-pink-100 dark:from-gray-900 dark:to-gray-800"
-        style={{ height: "100dvh" }}
+        className="flex flex-col bg-gradient-to-br from-rose-50 to-pink-100 dark:from-gray-900 dark:to-gray-800 h-screen max-h-screen overflow-hidden"
       >
 
         {/* HEADER FIXED 100% */}
-        <header className="flex-shrink-0 bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm border-b border-pink-100 dark:border-gray-700 shadow-sm z-10">
+        <header className="flex-shrink-0 bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm border-b border-pink-100 dark:border-gray-700 shadow-sm z-20">
           <div className="flex items-center justify-between p-3">
             <button
               className="flex items-center space-x-2"
@@ -260,14 +259,14 @@ export default function Chat() {
         {/* CHAT AREA - FIXED SCROLLING AND LAYOUT */}
         <div
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto p-3 space-y-3 pb-2"
+          className="flex-1 overflow-y-auto p-3 space-y-4 pb-4"
           style={{
             WebkitOverflowScrolling: "touch",
             overscrollBehavior: "contain",
           }}
         >
           {messages.map(m => (
-            <div key={m.id} className="w-full">
+            <div key={m.id} className="w-full clear-both">
               <ChatMessageBubble message={m} />
             </div>
           ))}
@@ -277,7 +276,7 @@ export default function Chat() {
 
         {/* INPUT - FIXED POSITIONING AND KEYBOARD ISSUES */}
         <div
-          className="p-2 bg-white dark:bg-gray-900 border-t dark:border-gray-700 sticky bottom-0"
+          className="flex-shrink-0 p-2 bg-white dark:bg-gray-900 border-t dark:border-gray-700 z-10"
           style={{ 
             paddingBottom: "env(safe-area-inset-bottom)",
           }}

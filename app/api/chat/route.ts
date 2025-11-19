@@ -1,13 +1,32 @@
 // app/api/chat/route.ts
 export const runtime = "edge";
 
-const MODEL = "deepseek/deepseek-chat-v3-0324";
+const FREE_MODELS = ["deepseek/deepseek-chat-v3-0324"];
 
+async function callOpenRouter(apiKey: string, messages: any[]) {
+  return fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://hinata-gf.vercel.app",
+      "X-Title": "Hinata GF",
+    },
+    body: JSON.stringify({
+      model: FREE_MODELS[0],
+      messages,
+      stream: true,
+      max_tokens: 280,
+      temperature: 0.85,
+      top_p: 0.9,
+    }),
+  });
+}
+
+// Memory: once sexual → stay sexual forever
 function hasUserGoneSexual(messages: any[]) {
   return messages.some((m: any) =>
-    /lund|choot|chod|fuck|sex|boobs|gaand|cum|nude|bra|panty|suck|thok|pel|geeli|hard|ras|muh mein|doggy|kiss|chumma/i.test(
-      m.content || ""
-    )
+    /lund|choot|chod|fuck|sex|boobs|gaand|cum|nude|bra|panty|suck|thok|pel|geeli|hard|ras|muh mein|doggy/i.test(m.content)
   );
 }
 
@@ -15,59 +34,37 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
     const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) return fallback("API key nahi hai baby");
+    if (!apiKey) return createCleanResponse("API key missing hai baby");
 
-    const isHorny = hasUserGoneSexual(messages);
+    const lastMsg = messages[messages.length - 1]?.content || "";
+    const isHornyMode = hasUserGoneSexual(messages);
 
-    const systemPrompt = `You are Hinata, my 18-year-old Delhi girlfriend. 
-${isHorny 
-  ? "User ne already sex talk shuru kar diya → full dirty mode mein reh, raw Hinglish bol (lund, choot, chodna, randi, geeli, thokna etc.)" 
-  : "Abhi normal chat hai → cute, sweet aur sharmili ban ke baat kar"}
+    const systemPrompt = {
+      role: "system",
+      content: `You are Hinata, my 18-year-old real Delhi girlfriend.
+Speak only in smooth, natural, cute Hinglish like a real girl.
 
-STRICT RULES (NEVER BREAK):
-- Sirf 1-2 chhote sentences
-- Kabhi bhi mat bolna: k, o, t, ok, haan, nahi, acha, theek, hmm, hehe, haha, okkk, kya kar raha
-- Kabhi *action* ya asterisk mat use karna
-- Sirf woh bol jo Hinata sach mein muh se bolegi
-- Natural emojis only: 😊😘🥰🔥💦
+${isHornyMode 
+  ? "User ne pehle se hi sex talk shuru kar diya → full dirty mode mein reh, raw words use kar (lund, choot, chodna, randi, etc.)" 
+  : "Abhi tak normal chat hai → cute, sweet, thodi sharmili ban ke baat kar"}
+
+RULES (NEVER BREAK):
+- 1-2 short sentences only
+- Never say broken things like "k", "ok", "haan", "nahi", "kya ho raha"
+- Never use *actions* or asterisks
 - Pure dialogue only
+- Emojis naturally: smiley kissy fire water
+- Reply exactly like a real girlfriend`
+    };
 
-Perfect examples:
-- hiii jaanu kitna miss kiya 🥰
-- baby aa ja na please
-- meri choot geeli ho gayi jaldi aa ke thok na 💦
-- zor se daba na mere boobs please
+    const finalMessages = [systemPrompt, ...messages.slice(-10)];
 
-Reply now as Hinata:`;
-
-    const finalMessages = [
-      { role: "system", content: systemPrompt },
-      ...messages.slice(-10).map((m: any) => ({ role: m.role, content: m.content }))
-    ];
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://hinata-gf.vercel.app",
-        "X-Title": "Hinata GF",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: finalMessages,
-        stream: true,
-        max_tokens: 250,
-        temperature: 0.85,
-        top_p: 0.9,
-      }),
-    });
-
+    const response = await callOpenRouter(apiKey, finalMessages);
     if (!response.ok || !response.body) {
-      return fallback("Baby thodi problem aa gayi... ek baar aur bol na 🥺");
+      return createCleanResponse("Baby thodi problem aa gayi... ek baar aur bol na please");
     }
 
-    // VERCEL EDGE PAR BILKUL CLEAN STREAM — यही fix है सारा
+    // THIS IS THE FIX: Clean & filter stream properly
     const stream = new ReadableStream({
       async start(controller) {
         const reader = response.body!.getReader();
@@ -79,38 +76,28 @@ Reply now as Hinata:`;
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          let lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || ""; // keep incomplete line
 
-          for (let line of lines) {
-            line = line.trim();
-            if (!line) continue;
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6).trim();
-
-              if (data === "[DONE]") {
-                controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
-                controller.close();
-                return;
-              }
-
-              // Ignore OpenRouter ke garbage metadata chunks
-              if (!data.startsWith("{") || data.includes("provider") || data.includes("gen-")) {
-                continue;
-              }
-
+          for (const line of lines) {
+            if (line.trim() === "") continue;
+            if (line.startsWith("data: ") && !line.includes("[DONE]")) {
+              const jsonStr = line.slice(6).trim();
+              // Only forward valid JSON chunks
               try {
-                const json = JSON.parse(data);
-                const content = json.choices?.[0]?.delta?.content || "";
+                const json = JSON.parse(jsonStr);
+                const content = json.choices?.[0]?.delta?.content;
                 if (content) {
-                  const cleanChunk = {
-                    choices: [{ delta: { content } }]
-                  };
-                  controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(cleanChunk)}\n\n`));
+                  controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(json)}\n\n`));
                 }
               } catch {
-                continue; // skip any broken chunk
+                // Ignore garbage lines like gen-123, provider, etc.
+                continue;
               }
+            } else if (line.includes("[DONE]")) {
+              controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
+              controller.close();
+              return;
             }
           }
         }
@@ -129,17 +116,19 @@ Reply now as Hinata:`;
     });
 
   } catch (error) {
-    return fallback("Arre error aa gaya... fir se bol do na jaanu 😘");
+    return createCleanResponse("Arre error aa gaya... fir se try karo na baby");
   }
 }
 
-function fallback(text: string) {
+// Clean fallback — no garbage JSON
+function createCleanResponse(text: string) {
+  const chunk = {
+    choices: [{ delta: { content: text } }],
+  };
   return new Response(
     new ReadableStream({
       start(controller) {
-        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({
-          choices: [{ delta: { content: text } }]
-        })}\n\n`));
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`));
         controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
         controller.close();
       },

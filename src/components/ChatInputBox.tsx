@@ -45,7 +45,7 @@ export default function ChatInputBox({ onSend, disabled }: ChatInputBoxProps) {
         // Keyboard is likely open, scroll input into view
         setTimeout(() => {
           el.scrollIntoView({ 
-            block: "center", 
+            block: "nearest", 
             behavior: "smooth",
             inline: "nearest"
           });
@@ -59,11 +59,17 @@ export default function ChatInputBox({ onSend, disabled }: ChatInputBoxProps) {
     // Also handle focus events
     const handleFocus = () => {
       setTimeout(() => {
-        el.scrollIntoView({ 
-          block: "center", 
-          behavior: "smooth",
-          inline: "nearest"
-        });
+        // Prevent scrolling the entire page, just ensure input is visible
+        const rect = el.getBoundingClientRect();
+        const viewportHeight = viewport ? viewport.height : window.innerHeight;
+        
+        if (rect.bottom > viewportHeight - 20) {
+          el.scrollIntoView({ 
+            block: "nearest", 
+            behavior: "smooth",
+            inline: "nearest"
+          });
+        }
       }, 300); // Slightly longer delay for keyboard to fully open
     };
 
