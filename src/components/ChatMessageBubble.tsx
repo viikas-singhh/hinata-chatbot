@@ -33,9 +33,15 @@ export default function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
         }`}
       >
         <div className="whitespace-pre-wrap break-words">{message.content}</div>
+
+        {/* ✅ FIXED LINE */}
         <div className={`text-xs mt-0.5 transition-opacity duration-200 ${isUser ? 'text-pink-100' : 'text-gray-500 dark:text-gray-400'}`}>
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {new Date(message.timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
         </div>
+
       </div>
     </div>
   );

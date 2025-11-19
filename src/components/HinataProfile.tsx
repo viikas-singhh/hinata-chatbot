@@ -35,6 +35,7 @@ export default function HinataProfile({ isOpen, onClose }: HinataProfileProps) {
                   src="/hinata.jpg" 
                   alt="Hinata" 
                   className="w-full h-full object-contain"
+                  loading="eager"
                 />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Hinata ❤️</h3>

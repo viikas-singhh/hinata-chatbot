@@ -1,4 +1,4 @@
-import { useState, useRef, KeyboardEvent, useEffect } from "react";
+import { useState, useRef, useEffect, KeyboardEvent } from "react";
 
 interface ChatInputBoxProps {
   onSend: (message: string) => void;
@@ -10,12 +10,12 @@ export default function ChatInputBox({ onSend, disabled }: ChatInputBoxProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = () => {
-    if (message.trim() && !disabled) {
-      onSend(message.trim());
-      setMessage("");
-    }
+    if (!message.trim() || disabled) return;
+    onSend(message.trim());
+    setMessage("");
   };
 
+  // Enter -> Send
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -23,78 +23,72 @@ export default function ChatInputBox({ onSend, disabled }: ChatInputBoxProps) {
     }
   };
 
-  const adjustTextareaHeight = () => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 100)}px`;
-    }
-  };
-
-  useEffect(() => {
-    adjustTextareaHeight();
-  }, [message]);
-
-  /** ✅ Fix: When keyboard opens → scroll bottom */
+  // Auto-grow height
   useEffect(() => {
     const el = textareaRef.current;
-    if (!el) return;
+    if (el) {
+      el.style.height = "0px";
+      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    }
+  }, [message]);
 
-    const handleFocus = () => {
+  // Mobile keyboard handling (TS SAFE)
+  useEffect(() => {
+    const el = textareaRef.current;
+    const viewport = typeof window !== "undefined" ? window.visualViewport : null;
+
+    if (!el || !viewport) return;
+
+    const fixKeyboard = () => {
       setTimeout(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-      }, 150);
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 80);
     };
 
-    el.addEventListener("focus", handleFocus);
-    return () => el.removeEventListener("focus", handleFocus);
+    el.addEventListener("focus", fixKeyboard);
+    viewport.addEventListener("resize", fixKeyboard);
+
+    return () => {
+      el.removeEventListener("focus", fixKeyboard);
+      viewport.removeEventListener("resize", fixKeyboard);
+    };
   }, []);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-pink-100 dark:border-gray-700 p-1">
-      <div className="flex items-end">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-pink-100 dark:border-gray-700 p-2">
+      <div className="flex items-end space-x-2">
+
         <textarea
           ref={textareaRef}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
+          rows={1}
           disabled={disabled}
           placeholder="Type a message..."
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="
-            flex-1 
-            resize-none 
-            border-0 
-            bg-transparent 
-            py-1 px-2 
-            text-gray-900 
-            dark:text-white 
-            focus:outline-none focus:ring-0 
-            max-h-20 
-            placeholder-gray-400 dark:placeholder-gray-500 
-            text-sm
+            flex-1 resize-none bg-transparent text-gray-900 dark:text-white 
+            placeholder-gray-400 dark:placeholder-gray-500
+            px-3 py-2 border-0 focus:ring-0 focus:outline-none
+            rounded-xl text-sm max-h-[120px]
           "
-          rows={1}
         />
 
         <button
           onClick={handleSubmit}
           disabled={!message.trim() || disabled}
-          className={`ml-1 h-6 w-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`h-9 w-9 rounded-full flex items-center justify-center transition-all duration-200 ${
             message.trim() && !disabled
-              ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:opacity-90 hover:scale-105 shadow-xs"
+              ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:scale-105 shadow-md"
               : "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
           }`}
           aria-label="Send message"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="w-3 h-3"
-          >
-            <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+            <path d="M3.4 2.3a1 1 0 00-1 1.3l3 8.4H13a1 1 0 010 2H5.4l-3 8.4a1 1 0 001.3 1.3 74.1 74.1 0 0020.3-10 1 1 0 000-1.6A74.1 74.1 0 003.4 2.3z"/>
           </svg>
         </button>
+
       </div>
     </div>
   );

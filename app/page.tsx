@@ -40,7 +40,7 @@ export default function Home() {
         
         <div className="pt-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Made with ❤️ for the ultimate chat experience
+            Made by NextGen Lab 🤖
           </p>
         </div>
       </div>

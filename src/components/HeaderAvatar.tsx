@@ -23,6 +23,7 @@ export default function HeaderAvatar() {
             src="/hinata.jpg" 
             alt="Hinata" 
             className="w-full h-full object-contain"
+            loading="eager"
           />
         </div>
         <div>
