@@ -1,58 +1,17 @@
+// app/api/chat/route.ts
 export const runtime = "edge";
 
-// Define fallback models - using currently available free models
-const FREE_MODELS = [
-  "deepseek/deepseek-chat-v3-0324",
-
-];
-
+const FREE_MODELS = ["deepseek/deepseek-chat-v3-0324"];
 let currentModelIndex = 0;
 
-// Simplified character traits for token efficiency
-const CHARACTER_TRAITS = {
-  name: "Hinata",
-  age: 18,
-  personality: "cute flirty girlfriend",
-  language: "Hinglish",
-  behavior: "Start polite, gradually warm up",
-  rules: [
-    "Speak in Hinglish naturally",
-    "1-2 sentences max per reply",
-    "Mirror user's tone",
-    "Use emojis sparingly",
-    "Stay in character always",
-    "NO asterisks, actions, or expressions",
-    "Pure dialogue only - no *grinning* or *leans*",
-    "Just words, no descriptive actions"
-  ]
-};
+function detectIntent(message: string): string {
+  const msg = message.toLowerCase();
+  const horny = ["lund", "choot", "chod", "fuck", "sex", "boobs", "gaand", "cum", "nude", "panty", "bra", "suck", "thok", "geeli", "hard", "pel", "chumo"];
+  const flirty = ["baby", "jaanu", "love", "pyar", "miss", "hot", "sexy", "beautiful", "cute", "gf", "hug", "kiss"];
 
-// Lightweight RAG system for contextual responses
-const RESPONSE_PATTERNS = {
-  greetings: ["hi", "hello", "namaste", "hey"],
-  questions: ["how are you", "kya haal hai", "how do you do"],
-  flirty: ["love", "pyaar", "dil", "sexy", "hot", "beautiful", "cute"],
-  casual: ["what", "why", "when", "where", "who"]
-};
-
-function getDynamicContext(userMessage: string) {
-  const lowerMsg = userMessage.toLowerCase();
-  
-  // Simple pattern matching for context
-  if (RESPONSE_PATTERNS.greetings.some(g => lowerMsg.includes(g))) {
-    return "greeting";
-  }
-  if (RESPONSE_PATTERNS.questions.some(q => lowerMsg.includes(q))) {
-    return "question";
-  }
-  if (RESPONSE_PATTERNS.flirty.some(f => lowerMsg.includes(f))) {
-    return "flirty";
-  }
-  if (RESPONSE_PATTERNS.casual.some(c => lowerMsg.includes(c))) {
-    return "casual";
-  }
-  
-  return "default";
+  if (horny.some(w => msg.includes(w))) return "FULL NAUGHTY MODE – raw dirty Hinglish allowed";
+  if (flirty.some(w => msg.includes(w))) return "flirty & teasing";
+  return "cute, sweet & shy girlfriend";
 }
 
 async function callOpenRouter(apiKey: string, model: string, messages: any[]) {
@@ -62,94 +21,58 @@ async function callOpenRouter(apiKey: string, model: string, messages: any[]) {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://hinata-gf.vercel.app",
-      "X-Title": "Hinata GF Bot",
+      "X-Title": "Hinata GF",
     },
     body: JSON.stringify({
       model,
       messages,
       stream: true,
-      max_tokens: 300, // Reduced for efficiency
-      temperature: 0.95,
+      max_tokens: 300,
+      temperature: 0.92,
     }),
   });
-}
-
-function cycleToNextModel() {
-  currentModelIndex = (currentModelIndex + 1) % FREE_MODELS.length;
-  return FREE_MODELS[currentModelIndex];
 }
 
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
     const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) return createFallback("API key nahi hai baby");
 
-    if (!apiKey) {
-      const errorMsg = "API key missing. Please check your configuration.";
-      return createErrorResponse(errorMsg);
-    }
+    const userMsg = messages[messages.length - 1]?.content || "";
+    const mood = detectIntent(userMsg);
 
-    // Get the last user message for context
-    const lastUserMessage = messages.length > 0 ? messages[messages.length - 1].content : "";
-    const context = getDynamicContext(lastUserMessage);
-
-    // Ultra-lightweight system prompt to save tokens
     const systemPrompt = {
       role: "system",
-      content: `You are ${CHARACTER_TRAITS.name}, a ${CHARACTER_TRAITS.age}-year-old ${CHARACTER_TRAITS.personality}. 
-Speak in ${CHARACTER_TRAITS.language} naturally. 
-Context: ${context}.
-Rules: ${CHARACTER_TRAITS.rules.join("; ")}.
-Reply in first person. Stay in character. NO actions or expressions in asterisks.`
+      content: `You are Hinata, my 18-year-old girlfriend.
+Speak only in natural sweet Hinglish.
+Current user mood: ${mood}
+
+Rules:
+- Start cute & sweet
+- Get flirty when user says baby/love/miss you
+- Go fully dirty (lund, choot, chodna, randi, etc.) ONLY when user uses sexual words first
+- Never force sex talk
+- 1–2 sentences max
+- Pure dialogue only → NO *actions*, no asterisks, no descriptions
+- Emojis only when natural: smiley kissy fire water drop
+- Stay in character forever`
     };
 
-    const finalMessages = [
-      systemPrompt,
-      ...(Array.isArray(messages) ? messages.slice(-5) : []), // Reduced context window
-    ];
+    const finalMessages = [systemPrompt, ...messages.slice(-10)];
 
-    let model = FREE_MODELS[currentModelIndex];
-    let response = await callOpenRouter(apiKey, model, finalMessages);
+    let response = await callOpenRouter(apiKey, FREE_MODELS[currentModelIndex], finalMessages);
 
-    // If we get an error, try cycling through fallback models
+    // Simple retry once
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenRouter error:', response.status, errorText);
-      
-      // Try up to all available models
-      for (let i = 0; i < FREE_MODELS.length; i++) {
-        model = cycleToNextModel();
-        console.log('Trying model:', model);
-        response = await callOpenRouter(apiKey, model, finalMessages);
-        
-        if (response.ok) {
-          console.log('Found working model:', model);
-          break;
-        } else {
-          const modelError = await response.text();
-          console.error('Model failed:', model, response.status, modelError);
-        }
-      }
+      response = await callOpenRouter(apiKey, FREE_MODELS[0], finalMessages);
     }
 
     if (!response.ok || !response.body) {
-      let errorMsg = "Baby thodi problem hai... ek baar aur try karo na ❤️";
-      
-      // Provide specific error messages
-      if (response.status === 401) {
-        errorMsg = "Invalid API key. Please check your OpenRouter configuration.";
-      } else if (response.status === 402) {
-        errorMsg = "Insufficient credits. Please check your OpenRouter account.";
-      } else if (response.status === 429) {
-        errorMsg = "Rate limit reached! Please wait a few moments... 🙏";
-      } else if (response.status === 404) {
-        errorMsg = "Model not found. Please check the model configuration.";
-      }
-      
-      return createErrorResponse(errorMsg);
+      return createFallback("Baby thodi problem hai... ek baar aur bol na please");
     }
 
-    // Properly stream the response from OpenRouter
+    // This sends proper OpenAI-compatible JSON chunks → your frontend works 100%
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
@@ -159,33 +82,34 @@ Reply in first person. Stay in character. NO actions or expressions in asterisks
       },
     });
 
-  } catch (error: any) {
-    console.error('Unexpected error:', error);
-    return createErrorResponse(`Error: ${error.message || 'Unknown error occurred'}`);
+  } catch (error) {
+    return createFallback("Arre error ho gaya... fir se try karo na jaanu");
   }
 }
 
-function createErrorResponse(message: string) {
+// Sends fake but valid OpenAI JSON (so your frontend never breaks)
+function createFallback(text: string) {
+  const fakeChunk = {
+    choices: [{ delta: { content: text } }],
+    created: Date.now(),
+    model: "hinata",
+    object: "chat.completion.chunk",
+  };
+
   return new Response(
     new ReadableStream({
       start(controller) {
         const encoder = new TextEncoder();
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({
-            choices: [{ delta: { content: message } }],
-          })}\n\n`)
-        );
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(fakeChunk)}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       },
     }),
-    { 
-      headers: { 
+    {
+      headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "Access-Control-Allow-Origin": "*",
-      } 
+      },
     }
   );
 }
