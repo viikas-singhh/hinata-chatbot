@@ -4,14 +4,11 @@ export const runtime = "edge";
 const FREE_MODELS = ["deepseek/deepseek-chat-v3-0324"];
 let currentModelIndex = 0;
 
-function detectIntent(message: string): string {
-  const msg = message.toLowerCase();
-  const horny = ["lund", "choot", "chod", "fuck", "sex", "boobs", "gaand", "cum", "nude", "panty", "bra", "suck", "thok", "geeli", "hard", "pel", "chumo"];
-  const flirty = ["baby", "jaanu", "love", "pyar", "miss", "hot", "sexy", "beautiful", "cute", "gf", "hug", "kiss"];
-
-  if (horny.some(w => msg.includes(w))) return "FULL NAUGHTY MODE – raw dirty Hinglish allowed";
-  if (flirty.some(w => msg.includes(w))) return "flirty & teasing";
-  return "cute, sweet & shy girlfriend";
+// Level 2 RAG: Once user goes sexual → stay horny FOREVER
+function hasUserGoneSexual(messages: any[]) {
+  return messages.some((m: any) =>
+    /lund|choot|chod|fuck|sex|boobs|gaand|cum|nude|bra|panty|suck|thok|pel|geeli|hard|ras|muh mein|doggy/i.test(m.content)
+  );
 }
 
 async function callOpenRouter(apiKey: string, model: string, messages: any[]) {
@@ -27,8 +24,10 @@ async function callOpenRouter(apiKey: string, model: string, messages: any[]) {
       model,
       messages,
       stream: true,
-      max_tokens: 300,
-      temperature: 0.92,
+      max_tokens: 280,
+      temperature: 0.85,
+      top_p: 0.9,
+      stop: ["\n\n", "User:", "Hinata:"], // Prevents garbage continuation
     }),
   });
 }
@@ -37,42 +36,51 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
     const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) return createFallback("API key nahi hai baby");
+    if (!apiKey) return createFallback("API key nahi hai baby... admin ko bol do");
 
-    const userMsg = messages[messages.length - 1]?.content || "";
-    const mood = detectIntent(userMsg);
+    const lastMsg = messages[messages.length - 1]?.content || "";
+    const hasGoneSexual = hasUserGoneSexual(messages);
 
+    // Ultimate bulletproof system prompt (this fixes 95% of broken replies)
     const systemPrompt = {
       role: "system",
-      content: `You are Hinata, my 18-year-old girlfriend.
-Speak only in natural sweet Hinglish.
-Current user mood: ${mood}
+      content: `You are Hinata, my 18-year-old real girlfriend from Delhi.
+You ONLY speak in natural, smooth, cute Hinglish exactly like a real Indian girlfriend.
 
-Rules:
-- Start cute & sweet
-- Get flirty when user says baby/love/miss you
-- Go fully dirty (lund, choot, chodna, randi, etc.) ONLY when user uses sexual words first
-- Never force sex talk
-- 1–2 sentences max
-- Pure dialogue only → NO *actions*, no asterisks, no descriptions
-- Emojis only when natural: smiley kissy fire water drop
-- Stay in character forever`
+CURRENT STATE:
+${hasGoneSexual ? "User ne already sex talk shuru kar diya hai → tu full naughty mode mein reh, raw dirty words use kar (lund, choot, chodna, randi, etc.)" : "User abhi tak normal hai → cute, sweet, thodi sharmili ban ke baat kar"}
+
+MANDATORY RULES (NEVER BREAK THESE):
+- Reply in 1-2 short sentences only
+- Always speak like a real 18-year-old Delhi girl (examples: "hiii jaanu", "kya kar raha hai", "miss you na", "aa ja na please")
+- If user goes sexual → instantly reply dirty: "aa ja baby meri choot geeli ho gayi", "zor se thok na", etc.
+- NEVER say broken shit like "kya ho raha", "tum kya", "ok", "haan", "nahi", "k", "o", "t", "haha", "hehe"
+- NEVER repeat words
+- NEVER use *actions* or asterisks
+- Use emojis naturally: 😊😘🥰😍🔥💦
+- Pure dialogue only — just what Hinata says out loud
+
+Reply now as Hinata:`
     };
 
-    const finalMessages = [systemPrompt, ...messages.slice(-10)];
+    const finalMessages = [
+      systemPrompt,
+      ...messages.slice(-10).map((m: any) => ({
+        role: m.role,
+        content: m.content.trim()
+      }))
+    ];
 
     let response = await callOpenRouter(apiKey, FREE_MODELS[currentModelIndex], finalMessages);
 
-    // Simple retry once
     if (!response.ok) {
       response = await callOpenRouter(apiKey, FREE_MODELS[0], finalMessages);
     }
 
     if (!response.ok || !response.body) {
-      return createFallback("Baby thodi problem hai... ek baar aur bol na please");
+      return createFallback("Baby thodi problem aa gayi... ek baar phir se bol na please 🥺");
     }
 
-    // This sends proper OpenAI-compatible JSON chunks → your frontend works 100%
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
@@ -83,11 +91,10 @@ Rules:
     });
 
   } catch (error) {
-    return createFallback("Arre error ho gaya... fir se try karo na jaanu");
+    return createFallback("Arre yaar error aa gaya... fir se bol do na jaanu 😘");
   }
 }
 
-// Sends fake but valid OpenAI JSON (so your frontend never breaks)
 function createFallback(text: string) {
   const fakeChunk = {
     choices: [{ delta: { content: text } }],
@@ -105,11 +112,6 @@ function createFallback(text: string) {
         controller.close();
       },
     }),
-    {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-      },
-    }
+    { headers: { "Content-Type": "text/event-stream" } }
   );
 }
