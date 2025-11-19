@@ -32,32 +32,52 @@ export default function ChatInputBox({ onSend, disabled }: ChatInputBoxProps) {
     }
   }, [message]);
 
-  // Mobile keyboard handling (TS SAFE)
+  // Improved mobile keyboard handling
   useEffect(() => {
     const el = textareaRef.current;
     const viewport = typeof window !== "undefined" ? window.visualViewport : null;
 
     if (!el || !viewport) return;
 
-    const fixKeyboard = () => {
-      setTimeout(() => {
-        el.scrollIntoView({ block: "center", behavior: "smooth" });
-      }, 80);
+    const handleViewportChange = () => {
+      // Only adjust when keyboard is open
+      if (viewport.height < window.innerHeight * 0.8) {
+        // Keyboard is likely open, scroll input into view
+        setTimeout(() => {
+          el.scrollIntoView({ 
+            block: "center", 
+            behavior: "smooth",
+            inline: "nearest"
+          });
+        }, 100);
+      }
     };
 
-    el.addEventListener("focus", fixKeyboard);
-    viewport.addEventListener("resize", fixKeyboard);
+    // Add visual viewport listeners
+    viewport.addEventListener("resize", handleViewportChange);
+    
+    // Also handle focus events
+    const handleFocus = () => {
+      setTimeout(() => {
+        el.scrollIntoView({ 
+          block: "center", 
+          behavior: "smooth",
+          inline: "nearest"
+        });
+      }, 300); // Slightly longer delay for keyboard to fully open
+    };
+
+    el.addEventListener("focus", handleFocus);
 
     return () => {
-      el.removeEventListener("focus", fixKeyboard);
-      viewport.removeEventListener("resize", fixKeyboard);
+      viewport.removeEventListener("resize", handleViewportChange);
+      el.removeEventListener("focus", handleFocus);
     };
   }, []);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-pink-100 dark:border-gray-700 p-2">
       <div className="flex items-end space-x-2">
-
         <textarea
           ref={textareaRef}
           value={message}
@@ -88,7 +108,6 @@ export default function ChatInputBox({ onSend, disabled }: ChatInputBoxProps) {
             <path d="M3.4 2.3a1 1 0 00-1 1.3l3 8.4H13a1 1 0 010 2H5.4l-3 8.4a1 1 0 001.3 1.3 74.1 74.1 0 0020.3-10 1 1 0 000-1.6A74.1 74.1 0 003.4 2.3z"/>
           </svg>
         </button>
-
       </div>
     </div>
   );

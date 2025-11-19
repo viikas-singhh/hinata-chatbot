@@ -18,6 +18,8 @@ export default function Chat() {
   const [isNavbarOpen, setIsNavbarOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isAutoScrolling = useRef(true);
 
   // Load history safely
   useEffect(() => {
@@ -31,10 +33,30 @@ export default function Chat() {
     }
   }, []);
 
-  // Auto scroll
+  // Handle scroll events to determine if user is at bottom
+  const handleScroll = () => {
+    if (chatContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      isAutoScrolling.current = isAtBottom;
+    }
+  };
+
+  // Auto scroll with better control
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isAutoScrolling.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
+
+  // Add scroll listener to container
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
 
   const saveMessages = (m: Message[]) =>
     localStorage.setItem("chat-history", JSON.stringify(m));
@@ -182,20 +204,20 @@ export default function Chat() {
 
       <div
         className="flex flex-col bg-gradient-to-br from-rose-50 to-pink-100 dark:from-gray-900 dark:to-gray-800"
-        style={{ height: "calc(var(--vh) * 100)" }}
+        style={{ height: "100dvh" }}
       >
 
         {/* HEADER FIXED 100% */}
-        <header className="flex-shrink-0 bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm border-b border-pink-100 dark:border-gray-700 shadow-sm">
+        <header className="flex-shrink-0 bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm border-b border-pink-100 dark:border-gray-700 shadow-sm z-10">
           <div className="flex items-center justify-between p-3">
-
             <button
               className="flex items-center space-x-2"
               onClick={() => setIsProfileOpen(true)}
             >
               <img
                 src="/hinata.jpg"
-                className="w-10 h-10 rounded-full shadow-md"
+                className="w-10 h-10 rounded-full shadow-md object-cover"
+                alt="Hinata"
               />
               <div>
                 <p className="text-sm font-bold text-gray-900 dark:text-white">
@@ -215,6 +237,7 @@ export default function Chat() {
                   localStorage.removeItem("chat-history");
                 }}
                 className="text-gray-600 dark:text-gray-300 hover:text-pink-600 text-xl"
+                aria-label="Clear chat"
               >
                 🗑️
               </button>
@@ -222,6 +245,7 @@ export default function Chat() {
               <button
                 onClick={() => setIsNavbarOpen(true)}
                 className="text-gray-700 dark:text-gray-200 hover:text-pink-600 text-xl"
+                aria-label="Menu"
               >
                 ☰
               </button>
@@ -233,26 +257,30 @@ export default function Chat() {
         <HinataProfile isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
         <NavbarPanel isOpen={isNavbarOpen} onClose={() => setIsNavbarOpen(false)} />
 
-        {/* CHAT AREA */}
+        {/* CHAT AREA - FIXED SCROLLING AND LAYOUT */}
         <div
-          id="chat-scroll-area"
-          className="flex-1 overflow-y-auto p-3"
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto p-3 space-y-3 pb-2"
           style={{
             WebkitOverflowScrolling: "touch",
-            overscrollBehavior: "contain"
+            overscrollBehavior: "contain",
           }}
         >
           {messages.map(m => (
-            <ChatMessageBubble key={m.id} message={m} />
+            <div key={m.id} className="w-full">
+              <ChatMessageBubble message={m} />
+            </div>
           ))}
 
-          <div ref={messagesEndRef}></div>
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* INPUT */}
+        {/* INPUT - FIXED POSITIONING AND KEYBOARD ISSUES */}
         <div
-          className="p-2 bg-white dark:bg-gray-900 border-t dark:border-gray-700"
-          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          className="p-2 bg-white dark:bg-gray-900 border-t dark:border-gray-700 sticky bottom-0"
+          style={{ 
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
         >
           <ChatInputBox onSend={sendMessage} disabled={isLoading} />
         </div>
