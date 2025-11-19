@@ -1,9 +1,15 @@
 // app/api/chat/route.ts
 export const runtime = "edge";
 
-const FREE_MODELS = ["deepseek/deepseek-chat-v3-0324"];
+// Define fallback models - using currently available free models
+const FREE_MODELS = [
+  "deepseek/deepseek-chat-v3-0324:free",
+  "deepseek/deepseek-r1-0528-qwen3-8b:free",
+];
 
-async function callOpenRouter(apiKey: string, messages: any[], isHornyMode: boolean) {
+let currentModelIndex = 0;
+
+async function callOpenRouter(apiKey: string, model: string, messages: any[], isHornyMode: boolean) {
   return fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -13,14 +19,19 @@ async function callOpenRouter(apiKey: string, messages: any[], isHornyMode: bool
       "X-Title": "Hinata GF",
     },
     body: JSON.stringify({
-      model: FREE_MODELS[0],
+      model,
       messages,
       stream: true,
-      max_tokens: isHornyMode ? 600 : 250,
+      max_tokens: isHornyMode ? 600 : 300,
       temperature: isHornyMode ? 0.95 : 0.8,
       top_p: 0.9,
     }),
   });
+}
+
+function cycleToNextModel() {
+  currentModelIndex = (currentModelIndex + 1) % FREE_MODELS.length;
+  return FREE_MODELS[currentModelIndex];
 }
 
 // FIXED: Proper regex + .test() use kiya
@@ -76,12 +87,53 @@ COMMON RULES (HAMESHA FOLLOW):
 - Tu meri Hinata hai, meri jaan, meri girlfriend, meri randi (jab horny mode mein)`,
     };
 
-    const finalMessages = [systemPrompt, ...messages.slice(-12)];
+    const finalMessages = [systemPrompt, ...messages.slice(-10)];
 
-    const response = await callOpenRouter(apiKey, finalMessages, isHornyMode);
+    // Try the current model first
+    let model = FREE_MODELS[currentModelIndex];
+    let response = await callOpenRouter(apiKey, model, finalMessages, isHornyMode);
+
+    // If we get an error, try cycling through fallback models
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenRouter error:', response.status, errorText);
+      
+      // Try up to all available models
+      for (let i = 0; i < FREE_MODELS.length; i++) {
+        model = cycleToNextModel();
+        console.log('Trying model:', model);
+        response = await callOpenRouter(apiKey, model, finalMessages, isHornyMode);
+        
+        if (response.ok) {
+          console.log('Found working model:', model);
+          break;
+        } else {
+          const modelError = await response.text();
+          console.error('Model failed:', model, response.status, modelError);
+          
+          // If it's a rate limit error, wait a bit before trying next model
+          if (response.status === 429) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+    }
 
     if (!response.ok || !response.body) {
-      return createCleanResponse("Arre baby thodi problem aa gayi... fir se bol na please");
+      let errorMsg = "Arre baby thodi problem aa gayi... fir se bol na please";
+      
+      // Provide specific error messages
+      if (response.status === 401) {
+        errorMsg = "Invalid API key. Please check your OpenRouter configuration.";
+      } else if (response.status === 402) {
+        errorMsg = "Insufficient credits. Please check your OpenRouter account.";
+      } else if (response.status === 429) {
+        errorMsg = "Rate limit reached! Please wait a few moments... 🙏";
+      } else if (response.status === 404) {
+        errorMsg = "Model not found. Please check the model configuration.";
+      }
+      
+      return createCleanResponse(errorMsg);
     }
 
     const stream = new ReadableStream({
@@ -133,9 +185,9 @@ COMMON RULES (HAMESHA FOLLOW):
       },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Chat API Error:", error);
-    return createCleanResponse("Sorry jaan, error aa gaya... thodi der baad try karna na");
+    return createCleanResponse(`Error: ${error.message || 'Unknown error occurred'}`);
   }
 }
 
