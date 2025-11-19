@@ -4,7 +4,7 @@ export const runtime = "edge";
 // Define fallback models - using currently available free models
 const FREE_MODELS = [
   "deepseek/deepseek-chat-v3-0324:free",
-  "deepseek/deepseek-r1-0528-qwen3-8b:free",
+
 ];
 
 let currentModelIndex = 0;
