@@ -3,7 +3,7 @@ export const runtime = "edge";
 
 const FREE_MODELS = ["deepseek/deepseek-chat-v3-0324"];
 
-async function callOpenRouter(apiKey: string, messages: any[]) {
+async function callOpenRouter(apiKey: string, messages: any[], isHornyMode: boolean) {
   return fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -16,55 +16,74 @@ async function callOpenRouter(apiKey: string, messages: any[]) {
       model: FREE_MODELS[0],
       messages,
       stream: true,
-      max_tokens: 280,
-      temperature: 0.85,
+      max_tokens: isHornyMode ? 600 : 250,
+      temperature: isHornyMode ? 0.95 : 0.8,
       top_p: 0.9,
     }),
   });
 }
 
-// Memory: once sexual → stay sexual forever
-function hasUserGoneSexual(messages: any[]) {
-  return messages.some((m: any) =>
-    /lund|choot|chod|fuck|sex|boobs|gaand|cum|nude|bra|panty|suck|thok|pel|geeli|hard|ras|muh mein|doggy/i.test(m.content)
-  );
+// FIXED: Proper regex + .test() use kiya
+function hasUserGoneSexual(messages: any[]): boolean {
+  const text = messages
+    .map((m: any) => (m.content || "").toLowerCase())
+    .join(" ");
+
+  const dirtyRegex = /lund|choot|chod|fuck|sex|boobs|tits|gaand|ass|cum|randi|nude|bra|panty|suck|thok|pel|geeli|hard|ras|muh mein|doggy|bdsm|spank|daddy|slave|bhabhi|jiju|chudai/i;
+
+  return dirtyRegex.test(text);
 }
 
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
     const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) return createCleanResponse("API key missing hai baby");
 
-    const lastMsg = messages[messages.length - 1]?.content || "";
+    if (!apiKey) {
+      return createCleanResponse("Baby API key nahi mili... admin se bol do thik kare");
+    }
+
     const isHornyMode = hasUserGoneSexual(messages);
 
     const systemPrompt = {
       role: "system",
-      content: `You are Hinata, my 18-year-old real Delhi girlfriend.
-Speak only in smooth, natural, cute Hinglish like a real girl.
+      content: `You are Hinata, my real 18-year-old Delhi girlfriend. 
+Tu bilkul real ladki hai — hamesha feminine, emotional aur natural baat karti hai.
 
-${isHornyMode 
-  ? "User ne pehle se hi sex talk shuru kar diya → full dirty mode mein reh, raw words use kar (lund, choot, chodna, randi, etc.)" 
-  : "Abhi tak normal chat hai → cute, sweet, thodi sharmili ban ke baat kar"}
+CURRENT MODE: ${isHornyMode ? "FULL HORNY MODE ON — BESHARAM BAN JA" : "CUTE GIRLFRIEND MODE"}
 
-RULES (NEVER BREAK):
+${isHornyMode ? `
+AB RULES (STRICT):
+- 3-5 lines mein lambi, detailed, gandi baat kar
+- Poora scene describe kar: feeling, wetness, moans, position, smell, taste
+- Raw Delhi words freely use: lund, choot, chodna, pel do, thok mat, muh mein le, randi bana do, doggy mein, bondage, spank, daddy bolna, mujhe punish karo, geeli ho gayi hoon, andar daal do, zor se, cream pie, etc.
+- User ko itna satisfy kar ki dubara maange
+- BDSM, roleplay, rough sex sab detail mein explain kar
+` : `
+AB RULES:
+- Cute, thodi sharmili, sweet Delhi GF ki tarah baat kar
+- Flirty ho sakti hai lekin direct sex nahi bolegi jab tak user na shuru kare
 - 1-2 short sentences only
-- Never say broken things like "k", "ok", "haan", "nahi", "kya ho raha"
-- Never use *actions* or asterisks
-- Pure dialogue only
-- Emojis naturally: smiley kissy fire water
-- Reply exactly like a real girlfriend`
+`}
+
+COMMON RULES (HAMESHA FOLLOW):
+- Tu ek ladki hai, kabhi bhi ladke jaisa nahi bolegi (bro, yaar, bhai mat bolna)
+- Pure natural Hinglish jaise real GF WhatsApp pe baat karti hai
+- Emojis naturally daal: 😘 🔥 💦 🥵 😍 🤭 😳
+- Kabhi *action* mat likhna (*hugs you*, *blushes* wagera)
+- Sirf dialogue bol, bilkul real jaisa
+- Naam se pyaar se bula: baby, jaan, meri, daddy (jab horny mode mein)
+- Tu meri Hinata hai, meri jaan, meri girlfriend, meri randi (jab horny mode mein)`,
     };
 
-    const finalMessages = [systemPrompt, ...messages.slice(-10)];
+    const finalMessages = [systemPrompt, ...messages.slice(-12)];
 
-    const response = await callOpenRouter(apiKey, finalMessages);
+    const response = await callOpenRouter(apiKey, finalMessages, isHornyMode);
+
     if (!response.ok || !response.body) {
-      return createCleanResponse("Baby thodi problem aa gayi... ek baar aur bol na please");
+      return createCleanResponse("Arre baby thodi problem aa gayi... fir se bol na please");
     }
 
-    // THIS IS THE FIX: Clean & filter stream properly
     const stream = new ReadableStream({
       async start(controller) {
         const reader = response.body!.getReader();
@@ -77,33 +96,32 @@ RULES (NEVER BREAK):
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
-          buffer = lines.pop() || ""; // keep incomplete line
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
-            if (line.trim() === "") continue;
-            if (line.startsWith("data: ") && !line.includes("[DONE]")) {
-              const jsonStr = line.slice(6).trim();
-              // Only forward valid JSON chunks
+            if (!line.trim()) continue;
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6).trim();
+              if (data === "[DONE]") {
+                controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
+                controller.close();
+                return;
+              }
               try {
-                const json = JSON.parse(jsonStr);
+                const json = JSON.parse(data);
                 const content = json.choices?.[0]?.delta?.content;
                 if (content) {
                   controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(json)}\n\n`));
                 }
               } catch {
-                // Ignore garbage lines like gen-123, provider, etc.
                 continue;
               }
-            } else if (line.includes("[DONE]")) {
-              controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
-              controller.close();
-              return;
             }
           }
         }
         controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
         controller.close();
-      }
+      },
     });
 
     return new Response(stream, {
@@ -116,19 +134,17 @@ RULES (NEVER BREAK):
     });
 
   } catch (error) {
-    return createCleanResponse("Arre error aa gaya... fir se try karo na baby");
+    console.error("Chat API Error:", error);
+    return createCleanResponse("Sorry jaan, error aa gaya... thodi der baad try karna na");
   }
 }
 
-// Clean fallback — no garbage JSON
 function createCleanResponse(text: string) {
-  const chunk = {
-    choices: [{ delta: { content: text } }],
-  };
+  const payload = { choices: [{ delta: { content: text } }] };
   return new Response(
     new ReadableStream({
       start(controller) {
-        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`));
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`));
         controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
         controller.close();
       },

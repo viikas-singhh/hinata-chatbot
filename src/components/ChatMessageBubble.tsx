@@ -23,6 +23,15 @@ export default function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
     );
   }
   
+  // Function to clean up extra whitespace while preserving intended formatting
+  const formatMessageContent = (content: string) => {
+    // Replace multiple consecutive spaces with a single space
+    // But preserve line breaks for paragraphs
+    return content
+      .replace(/[ \t]+/g, ' ') // Replace multiple spaces/tabs with single space
+      .trim(); // Remove leading/trailing whitespace
+  };
+  
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full clear-both`}>
       <div
@@ -32,7 +41,7 @@ export default function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
             : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none rounded-tr-2xl rounded-br-2xl'
         }`}
       >
-        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        <div className="break-words">{formatMessageContent(message.content)}</div>
 
         {/* ✅ FIXED LINE */}
         <div className={`text-xs mt-1 transition-opacity duration-200 ${isUser ? 'text-pink-100' : 'text-gray-500 dark:text-gray-400'}`}>

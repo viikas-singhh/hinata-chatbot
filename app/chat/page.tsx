@@ -204,10 +204,11 @@ export default function Chat() {
 
       <div
         className="flex flex-col bg-gradient-to-br from-rose-50 to-pink-100 dark:from-gray-900 dark:to-gray-800 h-screen max-h-screen overflow-hidden"
+        style={{ height: "100dvh" }} // Use dynamic viewport height
       >
 
         {/* HEADER FIXED 100% */}
-        <header className="flex-shrink-0 bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm border-b border-pink-100 dark:border-gray-700 shadow-sm z-20">
+        <header className="flex-shrink-0 bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm border-b border-pink-100 dark:border-gray-700 shadow-sm z-20 sticky top-0">
           <div className="flex items-center justify-between p-3">
             <button
               className="flex items-center space-x-2"
