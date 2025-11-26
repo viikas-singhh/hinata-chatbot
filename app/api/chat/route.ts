@@ -3,7 +3,7 @@ export const runtime = "edge";
 
 // Define fallback models - using currently available free models
 const FREE_MODELS = [
-  "deepseek/deepseek-chat-v3-0324:free",
+  "x-ai/grok-4.1-fast:free",
 
 ];
 
